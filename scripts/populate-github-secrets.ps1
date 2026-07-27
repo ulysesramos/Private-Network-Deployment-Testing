@@ -56,7 +56,7 @@ function Set-GitHubSecret {
     [Parameter(Mandatory = $true)][string]$RepositoryName
   )
 
-  $Value | gh secret set $Name --repo $RepositoryName --body - | Out-Null
+  gh secret set $Name --repo $RepositoryName --body "$Value" | Out-Null
 }
 
 function Set-GitHubVariable {
