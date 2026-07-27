@@ -121,6 +121,39 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3.1.2
 
+      - name: Ensure Network Feature Registration
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            set -euo pipefail
+
+            feature_name="AllowBringYourOwnPublicIpAddress"
+            feature_state=$(az feature show --namespace Microsoft.Network --name "$feature_name" --query properties.state -o tsv 2>/dev/null || echo "NotRegistered")
+
+            echo "Current feature state: $feature_state"
+            if [ "$feature_state" != "Registered" ]; then
+              echo "Registering Microsoft.Network/$feature_name..."
+              az feature register --namespace Microsoft.Network --name "$feature_name" >/dev/null
+
+              for i in $(seq 1 30); do
+                sleep 20
+                feature_state=$(az feature show --namespace Microsoft.Network --name "$feature_name" --query properties.state -o tsv)
+                echo "Feature state: $feature_state"
+                if [ "$feature_state" = "Registered" ]; then
+                  break
+                fi
+              done
+            fi
+
+            az provider register --namespace Microsoft.Network --wait >/dev/null
+
+            final_state=$(az feature show --namespace Microsoft.Network --name "$feature_name" --query properties.state -o tsv)
+            if [ "$final_state" != "Registered" ]; then
+              echo "Required feature Microsoft.Network/$feature_name is not registered. Current state: $final_state" >&2
+              exit 1
+            fi
+
       - name: Terraform Init
         run: terraform -chdir=VM init -input=false -upgrade -backend-config="${{ github.workspace }}/.tfbackend/pndt" -backend-config="use_azuread_auth=false"
 
@@ -214,3 +247,6 @@ jobs:
 
       - name: Terraform Apply
         run: terraform -chdir=VM apply -auto-approve tfplan
+
+      # - name: Terraform Destroy
+      #   run: terraform -chdir=VM destroy -auto-approve -input=false
