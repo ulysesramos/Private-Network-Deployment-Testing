@@ -1,0 +1,8 @@
+# Terraform local/cache artifacts
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Keep lockfile tracked by default for reproducible providers
+# !**/.terraform.lock.hcl

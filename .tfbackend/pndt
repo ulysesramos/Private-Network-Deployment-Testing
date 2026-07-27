@@ -1,0 +1,6 @@
+key                  = "pndt-vm.tfstate"
+resource_group_name  = "pndt-terraform-state"
+storage_account_name = "pndtterrastate"
+container_name       = "pndt-vm"
+subscription_id      = "92ade028-994d-424c-a639-48e33b16e332"
+use_azuread_auth     = true

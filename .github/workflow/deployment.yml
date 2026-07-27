@@ -1,0 +1,190 @@
+name: "pndt-vm-deployment"
+
+env:
+  ARM_CLIENT_ID:       ${{secrets.AZURE_P_PNDT_SPN_CLIENT_ID}}
+  ARM_CLIENT_SECRET:   ${{secrets.AZURE_P_PNDT_SPN_CLIENT_SECRET}}
+  ARM_TENANT_ID:       ${{secrets.AZURE_PNDT_TENANT_ID}}
+  ARM_SUBSCRIPTION_ID: ${{vars.AZURE_P_PNDT_SUB_ID}}  # Default provider subscription
+  ARM_ENVIRONMENT:    ${{ vars.AZURE_P_PNDT_ARM_ENVIRONMENT || 'usgovernment' }}
+  
+  AZURE_SP_CREDS:      ${{secrets.AZURE_P_PNDT_SPN}}
+  AZURE_GOV_ENV:       AzureUSGovernment
+
+  # Terraform variables
+  TF_VAR_subscription_id: ${{vars.AZURE_P_PNDT_SUB_ID}}
+  TF_VAR_vm_admin_password: ${{secrets.PNDT_VM_ADMIN_PASSWORD}}
+  TF_VAR_vm_admin_username: ${{secrets.PNDT_VM_ADMIN_USERNAME}}
+  TF_VAR_vm_size:          ${{ vars.AZURE_P_PNDT_VM_SIZE || 'Standard_B8ms' }}
+  TF_VAR_environment:      ${{ vars.AZURE_P_PNDT_ENVIRONMENT || 'prod' }}
+  TF_VAR_location:          "centralus"
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+
+  validate-terraform:
+    name:        Validate VM Terraform
+    runs-on:     ubuntu-latest
+    environment: P-BIS-MGMT
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - name: Connect to Azure
+        uses: azure/login@v2.3.0
+        with:
+          creds:          ${{ env.AZURE_SP_CREDS }}
+          environment:    ${{ env.AZURE_GOV_ENV }}
+          enable-AzPSSession: true
+
+      # Configure state storage account access and settings for Terraform backend.
+      - name: Enable Storage Account Keys for Terraform Backend
+        uses: azure/powershell@v2
+        with:
+          azPSVersion:         "latest"
+          failOnStandardError: "false"
+          inlineScript: |
+            $StorageAccountName = "pndtterrastate"
+            $ResourceGroupName = "pndt-terraform-state"
+            $SubscriptionId = "${{vars.AZURE_P_PNDT_SUB_ID}}"  # Storage account and deployment are in the same subscription
+            $ServicePrincipalObjectId = az ad sp show --id $env:ARM_CLIENT_ID --query id -o tsv
+            
+            Write-Host "Setting Azure subscription context..." -ForegroundColor Green
+            az account set --subscription $SubscriptionId
+            
+            Write-Host "=== Ensuring Service Principal has Storage Account Access ===" -ForegroundColor Yellow
+            
+            # Get storage account resource ID and container scope for Terraform state
+            $storageAccountId = az storage account show --name $StorageAccountName --resource-group $ResourceGroupName --query "id" -o tsv
+            $containerScope = "$storageAccountId/blobServices/default/containers/pndt-vm"
+
+            # Best-effort cleanup of legacy AMBA state before fresh deploy.
+            az storage blob delete --container-name amba --name amba.tfstate --account-name $StorageAccountName --auth-mode login --only-show-errors 2>$null
+            az storage container delete --name amba --account-name $StorageAccountName --auth-mode login --yes --only-show-errors 2>$null
+
+            # Ensure backend container exists for Terraform state.
+            az storage container create --name pndt-vm --account-name $StorageAccountName --auth-mode login | Out-Null
+            
+            Write-Host "Storage Account ID: $storageAccountId" -ForegroundColor Cyan
+            Write-Host "Container Scope: $containerScope" -ForegroundColor Cyan
+            
+            # Grant container-level Storage Blob Data Contributor role for Terraform state access
+            Write-Host "Granting Storage Blob Data Contributor role at container level..." -ForegroundColor Green
+            az role assignment create --assignee $ServicePrincipalObjectId --role "Storage Blob Data Contributor" --scope $containerScope 2>$null
+            
+            # Grant Storage Account Contributor for account-level operations (key management, settings)
+            Write-Host "Granting Storage Account Contributor role for account management..." -ForegroundColor Green
+            az role assignment create --assignee $ServicePrincipalObjectId --role "Storage Account Contributor" --scope $storageAccountId 2>$null
+            
+            Write-Host "=== ARM Environment Variables ===" -ForegroundColor Yellow
+            Write-Host "ARM_CLIENT_ID: $(if($env:ARM_CLIENT_ID -and $env:ARM_CLIENT_ID.Length -ge 8) { $env:ARM_CLIENT_ID.Substring(0,8) + '...' } else { '[NOT SET OR TOO SHORT]' })" -ForegroundColor Cyan
+            Write-Host "ARM_TENANT_ID: $(if($env:ARM_TENANT_ID -and $env:ARM_TENANT_ID.Length -ge 8) { $env:ARM_TENANT_ID.Substring(0,8) + '...' } else { '[NOT SET OR TOO SHORT]' })" -ForegroundColor Cyan
+            Write-Host "ARM_SUBSCRIPTION_ID: $(if($env:ARM_SUBSCRIPTION_ID -and $env:ARM_SUBSCRIPTION_ID.Length -ge 8) { $env:ARM_SUBSCRIPTION_ID.Substring(0,8) + '...' } else { '[NOT SET OR TOO SHORT]' })" -ForegroundColor Cyan
+            Write-Host "ARM_CLIENT_SECRET: $(if($env:ARM_CLIENT_SECRET) {'[SET]'} else {'[NOT SET]'})" -ForegroundColor Cyan
+            
+            Write-Host "`n=== Current Storage Account Settings ===" -ForegroundColor Yellow
+            $storageInfo = az storage account show --name $StorageAccountName --resource-group $ResourceGroupName --query "{allowSharedKeyAccess:allowSharedKeyAccess,publicNetworkAccess:publicNetworkAccess,networkRuleSet:networkRuleSet.defaultAction}" -o json | ConvertFrom-Json
+            Write-Host "Allow Shared Key Access: $($storageInfo.allowSharedKeyAccess)" -ForegroundColor Cyan
+            Write-Host "Public Network Access: $($storageInfo.publicNetworkAccess)" -ForegroundColor Cyan
+            Write-Host "Default Network Action: $($storageInfo.networkRuleSet)" -ForegroundColor Cyan
+            
+            Write-Host "`n=== Configuring Storage Account for Terraform Backend (Storage Account Keys) ===" -ForegroundColor Yellow
+            
+            # Enable storage account keys for Terraform backend
+            Write-Host "Enabling shared key access (required for storage account key auth)..." -ForegroundColor Green
+            az storage account update --name $StorageAccountName --resource-group $ResourceGroupName --allow-shared-key-access true
+            
+            Write-Host "Ensuring public network access is enabled..." -ForegroundColor Green
+            az storage account update --name $StorageAccountName --resource-group $ResourceGroupName --public-network-access Enabled
+            
+            Write-Host "Setting network rules to allow all traffic..." -ForegroundColor Green
+            az storage account update --name $StorageAccountName --resource-group $ResourceGroupName --default-action Allow
+            
+            Write-Host "`n✅ Storage account configured for Terraform backend with storage account keys!" -ForegroundColor Green          
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3.1.2
+
+      - name: Terraform Init
+        run: terraform -chdir=VM init -input=false -upgrade -backend-config="${{ github.workspace }}/.tfbackend/pndt"
+
+      - name: Terraform Validate
+        run: terraform -chdir=VM validate
+
+      - name: Terraform Plan
+        run: terraform -chdir=VM plan -input=false -out=tfplan
+
+  apply:
+    if: github.ref == 'refs/heads/main'
+    needs: validate-terraform
+    runs-on: ubuntu-latest
+    environment: P-BIS-MGMT
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Connect to Azure
+        uses: azure/login@v2.3.0
+        with:
+          creds:          ${{ env.AZURE_SP_CREDS }}
+          environment:    ${{ env.AZURE_GOV_ENV }}
+          enable-AzPSSession: true
+
+      # Ensure state storage account allows key-based authentication for Terraform backend.
+      - name: Enable Storage Account Keys for Terraform Backend
+        uses: azure/powershell@v2
+        with:
+          azPSVersion:         "latest"
+          failOnStandardError: "false"
+          inlineScript: |
+            $StorageAccountName = "pndtterrastate"
+            $ResourceGroupName = "pndt-terraform-state"
+            $SubscriptionId = "${{vars.AZURE_P_PNDT_SUB_ID}}"  # Storage account and deployment are in the same subscription
+            $ServicePrincipalObjectId = az ad sp show --id $env:ARM_CLIENT_ID --query id -o tsv
+            
+            az account set --subscription $SubscriptionId
+            
+            Write-Host "=== Ensuring Service Principal has Storage Account Access ===" -ForegroundColor Yellow
+            
+            # Get storage account resource ID and container scope for Terraform state
+            $storageAccountId = az storage account show --name $StorageAccountName --resource-group $ResourceGroupName --query "id" -o tsv
+            $containerScope = "$storageAccountId/blobServices/default/containers/pndt-vm"
+
+            # Best-effort cleanup of legacy AMBA state before fresh deploy.
+            az storage blob delete --container-name amba --name amba.tfstate --account-name $StorageAccountName --auth-mode login --only-show-errors 2>$null
+            az storage container delete --name amba --account-name $StorageAccountName --auth-mode login --yes --only-show-errors 2>$null
+
+            # Ensure backend container exists for Terraform state.
+            az storage container create --name pndt-vm --account-name $StorageAccountName --auth-mode login | Out-Null
+            
+            # Grant container-level Storage Blob Data Contributor role for Terraform state access
+            az role assignment create --assignee $ServicePrincipalObjectId --role "Storage Blob Data Contributor" --scope $containerScope 2>$null
+            az role assignment create --assignee $ServicePrincipalObjectId --role "Storage Account Contributor" --scope $storageAccountId 2>$null
+            
+            # Enable storage account settings for Terraform backend (using storage account keys)
+            Write-Host "Enabling shared key access (required for storage account key auth)..." -ForegroundColor Green
+            az storage account update --name $StorageAccountName --resource-group $ResourceGroupName --allow-shared-key-access true
+            
+            Write-Host "Enabling public network access..." -ForegroundColor Green
+            az storage account update --name $StorageAccountName --resource-group $ResourceGroupName --public-network-access Enabled
+            
+            Write-Host "Setting network rules to allow all traffic..." -ForegroundColor Green
+            az storage account update --name $StorageAccountName --resource-group $ResourceGroupName --default-action Allow
+            
+            Write-Host "✅ Storage account configured for Terraform with storage account keys!" -ForegroundColor Green
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3.1.2
+
+      - name: Terraform Init
+        run: terraform -chdir=VM init -input=false -upgrade -backend-config="${{ github.workspace }}/.tfbackend/pndt"
+
+      - name: Terraform Plan
+        run: terraform -chdir=VM plan -input=false -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform -chdir=VM apply -auto-approve tfplan
