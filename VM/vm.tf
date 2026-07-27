@@ -44,6 +44,7 @@ resource "azurerm_storage_account" "bootdiag" {
 
 resource "azurerm_windows_virtual_machine" "deployment_tester" {
   name                  = "vm-${local.name_prefix}-iac"
+  computer_name         = substr(replace("vm-${local.name_prefix}", "-", ""), 0, 15)
   location              = azurerm_resource_group.resource_group.location
   resource_group_name   = azurerm_resource_group.resource_group.name
   network_interface_ids = [azurerm_network_interface.vm_nic.id]
