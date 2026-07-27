@@ -14,9 +14,9 @@ env:
   TF_VAR_subscription_id: ${{vars.AZURE_P_PNDT_SUB_ID}}
   TF_VAR_vm_admin_password: ${{secrets.PNDT_VM_ADMIN_PASSWORD}}
   TF_VAR_vm_admin_username: ${{secrets.PNDT_VM_ADMIN_USERNAME}}
-  TF_VAR_vm_size:          ${{ vars.AZURE_P_PNDT_VM_SIZE || 'Standard_B2s' }}
+  TF_VAR_vm_size:          ${{ vars.AZURE_P_PNDT_VM_SIZE || 'Standard_B8ms' }}
   TF_VAR_environment:      ${{ vars.AZURE_P_PNDT_ENVIRONMENT || 'prod' }}
-  TF_VAR_location:          "centralus"
+  TF_VAR_location:          "westus3"
 
 on:
   workflow_dispatch:

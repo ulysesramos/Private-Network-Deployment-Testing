@@ -6,7 +6,7 @@ variable "subscription_id" {
 variable "location" {
   description = "Azure region for all resources."
   type        = string
-  default     = "eastus"
+  default     = "westus3"
 }
 
 variable "environment" {
@@ -30,7 +30,7 @@ variable "vm_admin_password" {
 variable "vm_size" {
   description = "VM SKU."
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_B8ms"
 }
 
 variable "private_vnet_cidr" {
