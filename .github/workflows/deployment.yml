@@ -54,6 +54,10 @@ jobs:
             
             Write-Host "Setting Azure subscription context..." -ForegroundColor Green
             az account set --subscription $SubscriptionId
+
+            # Exempt this backend resource group from MCAPS modify policies that disable
+            # shared key and public network access needed for this CI backend pattern.
+            az group update --name $ResourceGroupName --set tags.SecurityControl=Ignore | Out-Null
             
             Write-Host "=== Ensuring Service Principal has Storage Account Access ===" -ForegroundColor Yellow
             
@@ -156,6 +160,10 @@ jobs:
             $ServicePrincipalObjectId = az ad sp show --id $env:ARM_CLIENT_ID --query id -o tsv
             
             az account set --subscription $SubscriptionId
+
+            # Exempt this backend resource group from MCAPS modify policies that disable
+            # shared key and public network access needed for this CI backend pattern.
+            az group update --name $ResourceGroupName --set tags.SecurityControl=Ignore | Out-Null
             
             Write-Host "=== Ensuring Service Principal has Storage Account Access ===" -ForegroundColor Yellow
             
