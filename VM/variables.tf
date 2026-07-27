@@ -30,7 +30,7 @@ variable "vm_admin_password" {
 variable "vm_size" {
   description = "VM SKU."
   type        = string
-  default     = "Standard_B8ms"
+  default     = "Standard_D4s_v3"
 }
 
 variable "private_vnet_cidr" {
