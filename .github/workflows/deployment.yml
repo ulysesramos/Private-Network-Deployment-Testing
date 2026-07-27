@@ -102,6 +102,15 @@ jobs:
             
             Write-Host "Setting network rules to allow all traffic..." -ForegroundColor Green
             az storage account update --name $StorageAccountName --resource-group $ResourceGroupName --default-action Allow
+
+            # Export storage account key for Terraform backend initialization.
+            Write-Host "Exporting ARM_ACCESS_KEY for Terraform backend init..." -ForegroundColor Green
+            $storageKey = az storage account keys list --account-name $StorageAccountName --resource-group $ResourceGroupName --query "[0].value" -o tsv
+            if (-not $storageKey) {
+              throw "Failed to retrieve storage account key for Terraform backend."
+            }
+            Write-Host "::add-mask::$storageKey"
+            "ARM_ACCESS_KEY=$storageKey" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
             
             Write-Host "`n✅ Storage account configured for Terraform backend with storage account keys!" -ForegroundColor Green          
 
@@ -109,7 +118,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3.1.2
 
       - name: Terraform Init
-        run: terraform -chdir=VM init -input=false -upgrade -backend-config="${{ github.workspace }}/.tfbackend/pndt"
+        run: terraform -chdir=VM init -input=false -upgrade -backend-config="${{ github.workspace }}/.tfbackend/pndt" -backend-config="use_azuread_auth=false"
 
       - name: Terraform Validate
         run: terraform -chdir=VM validate
@@ -174,6 +183,15 @@ jobs:
             
             Write-Host "Setting network rules to allow all traffic..." -ForegroundColor Green
             az storage account update --name $StorageAccountName --resource-group $ResourceGroupName --default-action Allow
+
+            # Export storage account key for Terraform backend initialization.
+            Write-Host "Exporting ARM_ACCESS_KEY for Terraform backend init..." -ForegroundColor Green
+            $storageKey = az storage account keys list --account-name $StorageAccountName --resource-group $ResourceGroupName --query "[0].value" -o tsv
+            if (-not $storageKey) {
+              throw "Failed to retrieve storage account key for Terraform backend."
+            }
+            Write-Host "::add-mask::$storageKey"
+            "ARM_ACCESS_KEY=$storageKey" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
             
             Write-Host "✅ Storage account configured for Terraform with storage account keys!" -ForegroundColor Green
 
@@ -181,7 +199,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3.1.2
 
       - name: Terraform Init
-        run: terraform -chdir=VM init -input=false -upgrade -backend-config="${{ github.workspace }}/.tfbackend/pndt"
+        run: terraform -chdir=VM init -input=false -upgrade -backend-config="${{ github.workspace }}/.tfbackend/pndt" -backend-config="use_azuread_auth=false"
 
       - name: Terraform Plan
         run: terraform -chdir=VM plan -input=false -out=tfplan
