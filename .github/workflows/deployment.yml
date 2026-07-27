@@ -5,10 +5,10 @@ env:
   ARM_CLIENT_SECRET:   ${{secrets.AZURE_P_PNDT_SPN_CLIENT_SECRET}}
   ARM_TENANT_ID:       ${{secrets.AZURE_PNDT_TENANT_ID}}
   ARM_SUBSCRIPTION_ID: ${{vars.AZURE_P_PNDT_SUB_ID}}  # Default provider subscription
-  ARM_ENVIRONMENT:    ${{ vars.AZURE_P_PNDT_ARM_ENVIRONMENT || 'usgovernment' }}
+  ARM_ENVIRONMENT:    ${{ vars.AZURE_P_PNDT_ARM_ENVIRONMENT || 'public' }}
   
   AZURE_SP_CREDS:      ${{secrets.AZURE_P_PNDT_SPN}}
-  AZURE_GOV_ENV:       AzureUSGovernment
+  AZURE_GOV_ENV:       AzureCloud
 
   # Terraform variables
   TF_VAR_subscription_id: ${{vars.AZURE_P_PNDT_SUB_ID}}
