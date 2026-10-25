@@ -1,0 +1,8 @@
+subscription_id                     = "92ade028-994d-424c-a639-48e33b16e332"
+environment                         = "prod"
+lz_network_resource_group_name      = "rg-pndt-prod-networking"
+lz_vnet_name                        = "vnet-pndt-prod-peer"
+lz_subnet_name                      = "snet-pndt-prod-peer"
+jumpbox_network_resource_group_name = "rg-pndt-prod"
+jumpbox_vnet_name                   = "vnet-pndt-prod-private"
+key_vault_name                      = "replace-with-unique-name"

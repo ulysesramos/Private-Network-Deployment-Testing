@@ -2,6 +2,17 @@
 
 This repository deploys a Windows VM behind Azure Bastion in a private VNet, with a peered private network for deployment testing.
 
+## Deploying workloads from the jump box
+
+The existing peered VNet is the landing zone (LZ). [LZ](LZ/README.md) is a separate
+Terraform root for workloads deployed interactively from the jump box, starting
+with a private Key Vault. It uses the existing networks without taking ownership
+of them and stores state separately from the VM deployment.
+
+See the [LZ guide](LZ/README.md) for Git clone/pull, local file transfer, SPN
+authentication, deployment, and private connectivity tests. LZ-only changes do not
+trigger the VM workflow; there is no LZ deployment pipeline.
+
 ## Terraform Backend Authentication Type
 
 The Terraform state backend is `azurerm` (configured in `VM/main.tf` and `.tfbackend/pndt`).

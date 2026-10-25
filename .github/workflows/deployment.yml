@@ -22,6 +22,10 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
+    paths:
+      - "VM/**"
+      - ".tfbackend/pndt"
+      - ".github/workflows/deployment.yml"
 
 jobs:
 
@@ -250,4 +254,3 @@ jobs:
 
       # - name: Terraform Destroy
       #   run: terraform -chdir=VM destroy -auto-approve -input=false
-
