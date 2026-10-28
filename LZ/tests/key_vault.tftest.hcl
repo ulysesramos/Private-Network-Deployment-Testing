@@ -270,16 +270,19 @@ run "private_services_and_project_wiring" {
   assert {
     condition = (
       length(azapi_resource.project_connection) == 6 &&
+      length(toset([for connection in azapi_resource.project_connection : connection.name])) == 6 &&
       alltrue([for key in ["ga", "rec"] :
         azapi_resource.project_connection["${key}-storage"].name == azurerm_storage_account.services[key].name &&
         azapi_resource.project_connection["${key}-cosmos"].name == azurerm_cosmosdb_account.projects[key].name &&
-        azapi_resource.project_connection["${key}-search"].name == azurerm_search_service.shared.name &&
+        azapi_resource.project_connection["${key}-search"].name == (key == "ga" ? azurerm_search_service.shared.name : "${azurerm_search_service.shared.name}-${key}") &&
+        azapi_resource.project_connection["${key}-search"].body.properties.target == "https://${azurerm_search_service.shared.name}.search.windows.net" &&
+        azapi_resource.project_connection["${key}-search"].body.properties.metadata.ResourceId == azurerm_search_service.shared.id &&
         azapi_resource.project_connection["${key}-storage"].parent_id == azapi_resource.foundry_project[key].id &&
         azapi_resource.project_connection["${key}-cosmos"].parent_id == azapi_resource.foundry_project[key].id &&
         azapi_resource.project_connection["${key}-search"].parent_id == azapi_resource.foundry_project[key].id &&
         azapi_resource.project_capability_host[key].body.properties.storageConnections == [azurerm_storage_account.services[key].name] &&
         azapi_resource.project_capability_host[key].body.properties.threadStorageConnections == [azurerm_cosmosdb_account.projects[key].name] &&
-        azapi_resource.project_capability_host[key].body.properties.vectorStoreConnections == [azurerm_search_service.shared.name]
+        azapi_resource.project_capability_host[key].body.properties.vectorStoreConnections == [azapi_resource.project_connection["${key}-search"].name]
       ]) &&
       alltrue([for connection in azapi_resource.project_connection : connection.body.properties.authType == "AAD"])
     )

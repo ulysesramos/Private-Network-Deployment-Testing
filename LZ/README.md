@@ -103,6 +103,16 @@ connections, and a connection to shared Search. The Agent capability host
 references those project connections. Foundry provisions the agent containers
 and databases; do not duplicate them as Terraform-managed containers/databases.
 
+Search connection names must be distinct across projects in this Foundry account.
+GA retains its existing Search-service-name connection; REC uses that name with
+`-rec` appended. Both connections still target the same Search service. Capability
+hosts reference the connection names, not the Search service name directly.
+
+If a previous apply failed creating `rec-search` with "can only be updated by the
+workspace that created it", pull this fix and generate a fresh plan. Do not
+delete/import GA's connection into REC or recreate the projects. The successful
+GA resources remain in state; the missing REC connection should be added on retry.
+
 Each project identity receives:
 
 - Storage Blob Data Owner on its own account (includes data access and

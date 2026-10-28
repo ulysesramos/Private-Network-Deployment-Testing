@@ -128,8 +128,9 @@ locals {
     },
     {
       for key in local.projects : "${key}-search" => {
-        project     = key
-        name        = azurerm_search_service.shared.name
+        project = key
+        # Preserve GA's deployed connection; REC needs a distinct backing-workspace name.
+        name        = key == "ga" ? azurerm_search_service.shared.name : "${azurerm_search_service.shared.name}-${key}"
         category    = "CognitiveSearch"
         target      = "https://${azurerm_search_service.shared.name}.search.windows.net"
         resource_id = azurerm_search_service.shared.id
