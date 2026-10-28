@@ -20,8 +20,44 @@ variable "lz_vnet_name" {
 }
 
 variable "lz_subnet_name" {
-  description = "Existing LZ subnet in which to create the private endpoint."
+  description = "Existing LZ subnet used as shared services for all private endpoints."
   type        = string
+}
+
+variable "resource_suffix" {
+  description = "Stable globally unique suffix for new service names; do not change after deployment."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9]{4,8}$", var.resource_suffix))
+    error_message = "Use 4-8 lowercase letters or digits."
+  }
+}
+
+variable "foundry_egress_subnet_cidr" {
+  description = "Unused RFC1918 /24 within the existing LZ VNet for Foundry agent egress."
+  type        = string
+  default     = "10.50.2.0/24"
+
+  validation {
+    condition = (
+      can(cidrnetmask(var.foundry_egress_subnet_cidr)) &&
+      can(regex("^(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.).*/24$", var.foundry_egress_subnet_cidr)) &&
+      try(cidrhost(var.foundry_egress_subnet_cidr, 0), "") == split("/", var.foundry_egress_subnet_cidr)[0]
+    )
+    error_message = "Provide an RFC1918 IPv4 /24 subnet, inside the LZ VNet and not overlapping any existing subnet."
+  }
+}
+
+variable "search_sku" {
+  description = "Paid AI Search SKU supporting private endpoints; shared by GA and REC."
+  type        = string
+  default     = "standard"
+
+  validation {
+    condition     = contains(["standard", "standard2", "standard3"], var.search_sku)
+    error_message = "Use standard, standard2, or standard3."
+  }
 }
 
 variable "jumpbox_network_resource_group_name" {

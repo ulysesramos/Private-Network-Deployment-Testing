@@ -5,9 +5,10 @@ This repository deploys a Windows VM behind Azure Bastion in a private VNet, wit
 ## Deploying workloads from the jump box
 
 The existing peered VNet is the landing zone (LZ). [LZ](LZ/README.md) is a separate
-Terraform root for workloads deployed interactively from the jump box, starting
-with a private Key Vault. It uses the existing networks without taking ownership
-of them and stores state separately from the VM deployment.
+Terraform root for workloads deployed interactively from the jump box: private
+Key Vaults, Storage/Data Lake, Cosmos DB, AI Search, and a private Foundry account
+with GA/REC Standard Agent projects. It reuses the existing networks, owns a new
+delegated Foundry egress subnet, and stores state separately from the VM deployment.
 
 See the [LZ guide](LZ/README.md) for Git clone/pull, local file transfer, SPN
 authentication, deployment, and private connectivity tests. LZ-only changes do not
