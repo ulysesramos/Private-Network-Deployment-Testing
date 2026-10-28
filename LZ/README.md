@@ -5,6 +5,11 @@ called the LZ. Run it interactively on the Windows jump box, not in GitHub Actio
 It preserves the existing VNets, peer subnet, peerings, and original Key Vault.
 It owns a new delegated subnet exclusively for Foundry agent egress.
 
+**Private backend prerequisite:** run [BackendBootstrap](../BackendBootstrap/README.md)
+on the jump box first when state storage public access is disabled. It creates
+the backend private endpoint and jump-box Blob DNS link using separate local
+state. No manual creation/import is required for the inspected environment.
+
 ## Resource inventory
 
 GA and REC are association names, not Azure release labels or recovery regions.
@@ -74,6 +79,14 @@ services. Do not delegate it or rename it. The separate Foundry egress subnet
 must not contain private endpoints.
 
 ### DNS zones
+
+The Blob zone is read from the existing `rg-pndt-prod-storage` resource group,
+not created by LZ. Override `blob_private_dns_resource_group_name` if needed.
+Its existing LZ link stays externally managed; BackendBootstrap owns its new
+jump-box link. LZ owns the six other new service zones and their twelve links,
+plus the original vault zone/links. Do not create a duplicate Blob zone. If an
+older LZ state already owns Blob zones/links, follow the ownership warning in the
+bootstrap guide before applying.
 
 | Service | Zone(s), linked to the LZ and jump-box VNets |
 |---|---|

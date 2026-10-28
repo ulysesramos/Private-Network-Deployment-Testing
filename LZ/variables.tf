@@ -3,6 +3,12 @@ variable "subscription_id" {
   type        = string
 }
 
+variable "blob_private_dns_resource_group_name" {
+  description = "Existing shared Blob private DNS zone resource group; links are owned outside LZ."
+  type        = string
+  default     = "rg-pndt-prod-storage"
+}
+
 variable "environment" {
   description = "Environment used to name and tag the LZ resource group."
   type        = string

@@ -1,6 +1,10 @@
+data "azurerm_private_dns_zone" "blob" {
+  name                = "privatelink.blob.core.windows.net"
+  resource_group_name = var.blob_private_dns_resource_group_name
+}
+
 locals {
   service_dns_zones = {
-    blob      = "privatelink.blob.core.windows.net"
     dfs       = "privatelink.dfs.core.windows.net"
     cosmos    = "privatelink.documents.azure.com"
     search    = "privatelink.search.windows.net"
@@ -20,7 +24,7 @@ locals {
       for key in keys(local.storage_accounts) : "storage-${key}-blob" => {
         resource_id = azurerm_storage_account.services[key].id
         subresource = "blob"
-        zone_ids    = [azurerm_private_dns_zone.services["blob"].id]
+        zone_ids    = [data.azurerm_private_dns_zone.blob.id]
       }
     },
     {

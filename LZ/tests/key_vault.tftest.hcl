@@ -80,6 +80,14 @@ override_data {
     tenant_id = "00000000-0000-0000-0000-000000000002"
     object_id = "00000000-0000-0000-0000-000000000003"
   }
+
+}
+
+override_data {
+  target = data.azurerm_private_dns_zone.blob
+  values = {
+    id = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-pndt-prod-storage/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+  }
 }
 
 override_data {
@@ -231,8 +239,12 @@ run "private_services_and_project_wiring" {
       azurerm_private_endpoint.services["datalake-dfs"].private_service_connection[0].subresource_names == tolist(["dfs"]) &&
       azurerm_private_endpoint.services["storage-datalake-blob"].private_service_connection[0].subresource_names == tolist(["blob"]) &&
       length(azurerm_private_endpoint.services["foundry"].private_dns_zone_group[0].private_dns_zone_ids) == 3 &&
-      length(azurerm_private_dns_zone.services) == 7 &&
-      length(azurerm_private_dns_zone_virtual_network_link.services) == 14 &&
+      alltrue([for key in ["shared", "ga", "rec", "datalake"] :
+        azurerm_private_endpoint.services["storage-${key}-blob"].private_dns_zone_group[0].private_dns_zone_ids == tolist([data.azurerm_private_dns_zone.blob.id])
+      ]) &&
+      !contains(keys(azurerm_private_dns_zone.services), "blob") &&
+      length(azurerm_private_dns_zone.services) == 6 &&
+      length(azurerm_private_dns_zone_virtual_network_link.services) == 12 &&
       alltrue([for key, link in azurerm_private_dns_zone_virtual_network_link.services :
         link.virtual_network_id == (endswith(key, "-lz") ? data.azurerm_virtual_network.lz.id : data.azurerm_virtual_network.jumpbox.id) &&
         !link.registration_enabled

@@ -4,6 +4,11 @@ This repository deploys a Windows VM behind Azure Bastion in a private VNet, wit
 
 ## Deploying workloads from the jump box
 
+If policy disables public access to Terraform state storage, first run the
+[private backend bootstrap](BackendBootstrap/README.md) from the jump box. It uses
+local state to establish backend private connectivity and reuses the existing
+shared Blob DNS zone. Then initialize the normal LZ remote backend.
+
 The existing peered VNet is the landing zone (LZ). [LZ](LZ/README.md) is a separate
 Terraform root for workloads deployed interactively from the jump box: private
 Key Vaults, Storage/Data Lake, Cosmos DB, AI Search, and a private Foundry account
